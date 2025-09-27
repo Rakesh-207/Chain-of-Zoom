@@ -1,8 +1,8 @@
-# Chain-of-Zoom: Extreme Super-Resolution via Scale Autoregression and Preference Alignment
+# Chain-of-Zoom: Extreme Super-Resolution via Scale Autoregression and Preference Alignment (NeurIPS 2025 Spotlight)
 
 This repository is the official implementation of [Chain-of-Zoom: Extreme Super-Resolution via Scale Autoregression and Preference Alignment](https://arxiv.org/abs/2505.18600), led by
 
-[Bryan Sangwoo Kim](https://scholar.google.com/citations?user=ndWU-84AAAAJ&hl=en), [Jeongsol Kim](https://jeongsol.dev/), [Jong Chul Ye](https://bispl.weebly.com/professor.html)
+[Bryan Sangwoo Kim](https://bryanswkim.github.io/), [Jeongsol Kim](https://jeongsol.dev/), [Jong Chul Ye](https://bispl.weebly.com/professor.html)
 
 ![main figure](assets/teaser.jpg)
 
@@ -119,6 +119,3 @@ If you find our method useful, please cite as below or leave a star to this repo
 
 ## 🤗 Acknowledgements
 We thank the authors of [OSEDiff](https://github.com/cswry/OSEDiff) for sharing their awesome work!
-
-> [!note]
-> This work is currently in the preprint stage, and there may be some changes to the code.
