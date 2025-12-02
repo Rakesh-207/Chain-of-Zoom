@@ -11,7 +11,6 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
 )
-
 logger = logging.getLogger("chain-of-zoom")
 
 # --- Configuration ---
@@ -19,65 +18,55 @@ VOL_NAME = "COZ"
 MODEL_DIR = "/models"
 ckpt_volume = modal.Volume.from_name(VOL_NAME)
 
-# Docker image environment - COMPREHENSIVE DEPENDENCIES
+# Docker image environment
 image = (
     modal.Image.debian_slim(python_version="3.10")
     .apt_install(
-        "git", 
-        "libgl1",           # OpenCV
-        "libglib2.0-0",     # OpenCV
-        "libsm6",           # OpenCV
-        "libxext6",         # OpenCV
-        "libxrender-dev",   # OpenCV
-        "libgomp1",         # OpenMP for fairscale
+        "git",
+        "libgl1",
+        "libglib2.0-0",
+        "libsm6",
+        "libxext6",
+        "libxrender-dev",
+        "libgomp1",
         "procps"
     )
-.pip_install(
-    # ========== CORE ML FRAMEWORKS ==========
-    "torch==2.1.2",
-    "torchvision==0.16.2",
-    
-    # ========== DIFFUSION & TRANSFORMERS ==========
-    "transformers==4.48.0",       # ✅ Latest stable
-    "tokenizers==0.21.0",          # ✅ Required by transformers 4.47
-    "diffusers==0.30.0",
-    "accelerate==0.34.0",
-    "huggingface-hub==0.26.0",     # ✅ Updated
-    "safetensors==0.4.5",
-    
-    # ========== LORA & PEFT ==========
-    "peft==0.13.0",
-    "loralib==0.1.2",
-    
-    # ========== DISTRIBUTED TRAINING ==========
-    "fairscale==0.4.13",
-    
-    # ========== VISION & VLM ==========
-    "qwen-vl-utils==0.0.8",
-    "timm==1.0.3",
-    
-    # ========== UTILITIES ==========
-    "gradio==4.16.0",
-    "Pillow==10.2.0",
-    "numpy==1.26.4",
-    "scipy==1.11.4",
-    "opencv-python-headless==4.9.0.80",
-    "einops==0.7.0",
-    
-    # ========== NLP & TOKENIZATION ==========
-    "sentencepiece==0.2.0",
-    "regex==2024.7.24",
-    
-    # ========== IMAGE QUALITY ==========
-    "lpips==0.1.4",
-    
-    # ========== OTHER ==========
-    "tqdm==4.66.1",
-    "omegaconf==2.3.0",
-    "fsspec==2024.2.0"
-)
-
-
+    .pip_install(
+        # ========== CORE ML FRAMEWORKS ==========
+        "torch==2.1.2",
+        "torchvision==0.16.2",
+        # ========== DIFFUSION & TRANSFORMERS ==========
+        "transformers==4.48.3",  # ✅ FIXED: Use 4.48.3 (stable, not 4.48.0)
+        "tokenizers==0.21.0",
+        "diffusers==0.30.0",
+        "accelerate==0.34.0",
+        "huggingface-hub==0.26.0",
+        "safetensors==0.4.5",
+        # ========== LORA & PEFT ==========
+        "peft==0.13.0",
+        "loralib==0.1.2",
+        # ========== DISTRIBUTED TRAINING ==========
+        "fairscale==0.4.13",
+        # ========== VISION & VLM ==========
+        "qwen-vl-utils==0.0.8",
+        "timm==1.0.3",
+        # ========== UTILITIES ==========
+        "gradio==4.16.0",
+        "Pillow==10.2.0",
+        "numpy==1.26.4",
+        "scipy==1.11.4",
+        "opencv-python-headless==4.9.0.80",
+        "einops==0.7.0",
+        # ========== NLP & TOKENIZATION ==========
+        "sentencepiece==0.2.0",
+        "regex==2024.7.24",
+        # ========== IMAGE QUALITY ==========
+        "lpips==0.1.4",
+        # ========== OTHER ==========
+        "tqdm==4.66.1",
+        "omegaconf==2.3.0",
+        "fsspec==2024.2.0"
+    )
     .run_commands("git clone https://github.com/Rakesh-207/Chain-of-Zoom.git /root/coz_repo")
     .run_commands("cp -r /root/coz_repo/* /root/")
     .add_local_file("osediff_sd3.py", remote_path="/root/osediff_sd3.py")
@@ -94,7 +83,6 @@ app = modal.App("chain-of-zoom-coz", image=image)
     experimental_options={"enable_gpu_snapshot": True}
 )
 class ChainOfZoom:
-    
     @modal.enter(snap=True)
     def setup(self):
         """
@@ -102,36 +90,41 @@ class ChainOfZoom:
         """
         logger.info("=== Starting Snapshot Setup (GPU) ===")
         start_time = time.time()
+        
         try:
             # 1. Environment Setup
             sys.path.append("/root")
             import torch
             from osediff_sd3 import OSEDiff_SD3_TEST_TILE, SD3Euler
-            from transformers import AutoModelForCausalLM, AutoProcessor
+            from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor  # ✅ FIXED
             from peft import PeftModel
             from ram.models.ram_lora import ram
+            
             self.device = "cuda"
             logger.info(f"✅ Imports successful")
-
+            
             # 2. Load SD3
             logger.info("Loading SD3...")
             sd3_path = f"{MODEL_DIR}/sd3_medium_diffusers"
             if not os.path.exists(sd3_path):
                 raise FileNotFoundError(f"SD3 model not found at {sd3_path}")
+            
             self.sd3_model = SD3Euler(model_key=sd3_path, device='cuda')
             logger.info(f"✅ SD3 loaded from {sd3_path}")
-
+            
             # Move to GPU and freeze
             self.sd3_model.text_enc_1.to('cuda')
             self.sd3_model.text_enc_2.to('cuda')
             self.sd3_model.text_enc_3.to('cuda')
             self.sd3_model.transformer.to('cuda', dtype=torch.float32)
             self.sd3_model.vae.to('cuda', dtype=torch.float32)
+            
             for p in [self.sd3_model.text_enc_1, self.sd3_model.text_enc_2, self.sd3_model.text_enc_3,
                       self.sd3_model.transformer, self.sd3_model.vae]:
                 p.requires_grad_(False)
+            
             logger.info("✅ SD3 components moved to GPU and frozen")
-
+            
             # 3. Initialize OSEDiff
             class MockArgs:
                 lora_rank = 4
@@ -141,8 +134,9 @@ class ChainOfZoom:
                 latent_tiled_overlap = 16
                 vae_encoder_tiled_size = 1024
                 vae_decoder_tiled_size = 128
-
+            
             self.args = MockArgs()
+            
             if not os.path.exists(self.args.lora_path):
                 raise FileNotFoundError(f"SR LoRA not found: {self.args.lora_path}")
             if not os.path.exists(self.args.vae_path):
@@ -150,27 +144,26 @@ class ChainOfZoom:
             
             self.model_test = OSEDiff_SD3_TEST_TILE(self.args, self.sd3_model)
             logger.info("✅ OSEDiff initialized with LoRA")
-
-            # 4. Load Qwen VLM
+            
+            # 4. Load Qwen VLM - ✅ FIXED SECTION
             logger.info("Loading VLM...")
             vlm_path = f"{MODEL_DIR}/qwen_vl_3b"
+            
             if not os.path.exists(vlm_path):
                 raise FileNotFoundError(f"Qwen VL model not found at {vlm_path}")
-    
-            from transformers import AutoModelForCausalLM, AutoProcessor
-    
-            self.vlm_model = AutoModelForCausalLM.from_pretrained(
+            
+            # ✅ CRITICAL FIX: Use Qwen2_5_VLForConditionalGeneration, NOT AutoModelForCausalLM
+            self.vlm_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
                 vlm_path,
                 torch_dtype=torch.bfloat16,
-                device_map="auto",
-                trust_remote_code=True  # ✅ Loads Qwen2.5-VL custom code
+                device_map="auto"
             )
-            self.vlm_processor = AutoProcessor.from_pretrained(
-                vlm_path,
-                trust_remote_code=True
-            )
+            
+            # ✅ FIXED: Use AutoProcessor (it handles both tokenizer and image processor)
+            self.vlm_processor = AutoProcessor.from_pretrained(vlm_path)
+            
             logger.info(f"✅ Qwen VLM loaded from {vlm_path}")
-
+            
             # Load VLM LoRA
             vlm_lora_path = f"{MODEL_DIR}/ckpt/VLM_LoRA"
             if os.path.exists(vlm_lora_path):
@@ -184,12 +177,14 @@ class ChainOfZoom:
                     logger.warning(f"VLM LoRA path exists but no adapter_config.json found")
             else:
                 logger.warning(f"VLM LoRA path not found: {vlm_lora_path}")
+            
             self.vlm_model.eval()
-
+            
             # 5. Load RAM/DAPE
             logger.info("Loading DAPE...")
             ram_path = f"{MODEL_DIR}/ckpt/RAM/ram_swin_large_14m.pth"
             dape_path = f"{MODEL_DIR}/ckpt/DAPE/DAPE.pth"
+            
             if not os.path.exists(ram_path):
                 raise FileNotFoundError(f"RAM model not found: {ram_path}")
             if not os.path.exists(dape_path):
@@ -203,12 +198,13 @@ class ChainOfZoom:
             )
             self.dape.eval().to("cuda")
             logger.info("✅ DAPE loaded and moved to GPU")
-
+            
             logger.info(f"🎉 GPU Snapshot Setup Complete in {time.time() - start_time:.2f}s")
-
+            
         except Exception as e:
             logger.critical(f"❌ Snapshot Setup FAILED: {e}")
             logger.critical(f"Error type: {type(e).__name__}")
+            
             # Debug directory contents
             if os.path.exists(MODEL_DIR):
                 logger.info(f"📁 Contents of {MODEL_DIR}:")
@@ -223,12 +219,14 @@ class ChainOfZoom:
                         logger.info(f"{subindent}... and {len(files) - 10} more files")
             else:
                 logger.critical(f"Directory {MODEL_DIR} does not exist!")
+            
             raise e
-    
+
     @modal.method()
     def process_image(self, image_bytes, upscale_factor=4):
         """Process image with Chain-of-Zoom upscaling"""
-        # Defensive check: Ensure setup ran
+        
+        # Defensive check
         if not hasattr(self, "model_test"):
             logger.warning("⚠️ Snapshot state missing! Running manual setup...")
             self.setup()
@@ -274,6 +272,7 @@ class ChainOfZoom:
                     temp_patch,
                     "vlm"
                 )
+                
                 output_img = self.model_test.decode_full_latent(full_latent).cpu()
             
             # Post-process
@@ -311,7 +310,7 @@ def gradio_app():
     import io
     
     def predict(image, scale):
-        if image is None: 
+        if image is None:
             return None
         
         try:
@@ -329,7 +328,7 @@ def gradio_app():
             
             print("✅ Processing complete!")
             return Image.open(io.BytesIO(res_bytes))
-        
+            
         except Exception as e:
             print(f"❌ Error: {str(e)}")
             raise gr.Error(f"Processing failed: {str(e)}")
