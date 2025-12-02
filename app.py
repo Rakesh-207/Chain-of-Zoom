@@ -32,21 +32,21 @@ image = (
         "libgomp1",         # OpenMP for fairscale
         "procps"
     )
-    .pip_install(
+.pip_install(
     # ========== CORE ML FRAMEWORKS ==========
     "torch==2.1.2",
     "torchvision==0.16.2",
     
     # ========== DIFFUSION & TRANSFORMERS ==========
-    "transformers==4.46.0",      # ✅ Supports Qwen2.5-VL
-    "tokenizers==0.20.0",         # ✅ CRITICAL: Required by transformers 4.46
+    "transformers==4.47.1",       # ✅ MINIMUM for Qwen2.5-VL support
+    "tokenizers==0.21.0",          # ✅ Required by transformers 4.47
     "diffusers==0.30.0",
-    "accelerate==0.34.0",         # ✅ Updated for compatibility
-    "huggingface-hub==0.25.0",    # ✅ Updated for stability
+    "accelerate==0.34.0",
+    "huggingface-hub==0.26.0",     # ✅ Updated
     "safetensors==0.4.5",
     
     # ========== LORA & PEFT ==========
-    "peft==0.13.0",               # ✅ Updated for transformers 4.46
+    "peft==0.13.0",
     "loralib==0.1.2",
     
     # ========== DISTRIBUTED TRAINING ==========
@@ -109,7 +109,7 @@ class ChainOfZoom:
             import torch
             from osediff_sd3 import OSEDiff_SD3_TEST_TILE, SD3Euler
             # ✅ CRITICAL FIX: Use the CORRECT import name
-            from transformers import AutoModel, AutoProcessor
+            from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
             from peft import PeftModel
             from ram.models.ram_lora import ram
             
@@ -159,26 +159,23 @@ class ChainOfZoom:
             self.model_test = OSEDiff_SD3_TEST_TILE(self.args, self.sd3_model)
             logger.info("✅ OSEDiff initialized with LoRA")
             
-            # 4. Load Qwen VLM
-            logger.info("Loading VLM...")
-            vlm_path = f"{MODEL_DIR}/qwen_vl_3b"
-            if not os.path.exists(vlm_path):
-                raise FileNotFoundError(f"Qwen VL model not found at {vlm_path}")
+# 4. Load Qwen VLM
+logger.info("Loading VLM...")
+vlm_path = f"{MODEL_DIR}/qwen_vl_3b"
+if not os.path.exists(vlm_path):
+    raise FileNotFoundError(f"Qwen VL model not found at {vlm_path}")
 
-            # ✅ CORRECT: Use generic AutoModel with trust_remote_code for Qwen2.5-VL
-            from transformers import AutoModel, AutoProcessor
-            self.vlm_model = AutoModel.from_pretrained(
-                vlm_path,
-                torch_dtype=torch.bfloat16,
-                device_map="auto",
-                trust_remote_code=True  # ✅ CRITICAL: Loads custom Qwen2.5-VL architecture
-            )
+# ✅ Use Qwen2_5_VL specific classes (supported in transformers 4.47+)
+from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
 
-            self.vlm_processor = AutoProcessor.from_pretrained(
-                vlm_path,
-                trust_remote_code=True
-            )
-            logger.info(f"✅ Qwen VLM loaded from {vlm_path}")
+self.vlm_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+    vlm_path,
+    torch_dtype=torch.bfloat16,
+    device_map="auto"
+)
+
+self.vlm_processor = AutoProcessor.from_pretrained(vlm_path)
+logger.info(f"✅ Qwen VLM loaded from {vlm_path}")
             
             # Load VLM LoRA  
             vlm_lora_path = f"{MODEL_DIR}/ckpt/VLM_LoRA"
