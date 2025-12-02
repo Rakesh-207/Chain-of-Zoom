@@ -15,7 +15,7 @@ image = (
     .pip_install("huggingface_hub[hf_transfer]") 
     .env({
         "HF_HUB_ENABLE_HF_TRANSFER": "1",  # <--- CRITICAL FOR SPEED
-         "HF_TOKEN": "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"    # Use if not using Modal Secrets
+         "HF_TOKEN": "<replace with original token here>"    # Use if not using Modal Secrets  
     })
 )
 
