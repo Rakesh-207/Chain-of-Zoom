@@ -109,7 +109,7 @@ class ChainOfZoom:
             import torch
             from osediff_sd3 import OSEDiff_SD3_TEST_TILE, SD3Euler
             # ✅ CRITICAL FIX: Use the CORRECT import name
-            from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
+        from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
             from peft import PeftModel
             from ram.models.ram_lora import ram
             
@@ -159,23 +159,23 @@ class ChainOfZoom:
             self.model_test = OSEDiff_SD3_TEST_TILE(self.args, self.sd3_model)
             logger.info("✅ OSEDiff initialized with LoRA")
             
-# 4. Load Qwen VLM
-logger.info("Loading VLM...")
-vlm_path = f"{MODEL_DIR}/qwen_vl_3b"
-if not os.path.exists(vlm_path):
-    raise FileNotFoundError(f"Qwen VL model not found at {vlm_path}")
+        # 4. Load Qwen VLM
+        logger.info("Loading VLM...")
+        vlm_path = f"{MODEL_DIR}/qwen_vl_3b"
+        if not os.path.exists(vlm_path):
+            raise FileNotFoundError(f"Qwen VL model not found at {vlm_path}")
 
-# ✅ Use Qwen2_5_VL specific classes (supported in transformers 4.47+)
-from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
+        # ✅ Use Qwen2_5_VL specific classes (supported in transformers 4.47+)
+        from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
 
-self.vlm_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-    vlm_path,
-    torch_dtype=torch.bfloat16,
-    device_map="auto"
-)
+        self.vlm_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+            vlm_path,
+            torch_dtype=torch.bfloat16,
+            device_map="auto"
+        )
 
-self.vlm_processor = AutoProcessor.from_pretrained(vlm_path)
-logger.info(f"✅ Qwen VLM loaded from {vlm_path}")
+        self.vlm_processor = AutoProcessor.from_pretrained(vlm_path)
+        logger.info(f"✅ Qwen VLM loaded from {vlm_path}")
             
             # Load VLM LoRA  
             vlm_lora_path = f"{MODEL_DIR}/ckpt/VLM_LoRA"
