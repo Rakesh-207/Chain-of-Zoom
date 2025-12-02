@@ -904,6 +904,8 @@ class OSEDiff_SD3_TEST_TILE(torch.nn.Module):
                 padding=True,
                 return_tensors="pt",
             )
+            # Move all inputs to the same device as the model
+            inputs = {k: v.to(vlm_model.device) if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
             generated_ids = vlm_model.generate(**inputs, max_new_tokens=16)
             generated_ids_trimmed = [
                 out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
