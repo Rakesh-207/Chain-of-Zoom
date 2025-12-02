@@ -97,144 +97,127 @@ class ChainOfZoom:
     
     @modal.enter(snap=True)
     def setup(self):
-        """
-        Loads models into GPU memory during the snapshot phase.
-        """
-        logger.info("=== Starting Snapshot Setup (GPU) ===")
-        start_time = time.time()
-        
-        try:
-            # 1. Environment Setup
-            sys.path.append("/root")
-            import torch
-            from osediff_sd3 import OSEDiff_SD3_TEST_TILE, SD3Euler
-            # ✅ CRITICAL FIX: Use the CORRECT import name
+    """
+    Loads models into GPU memory during the snapshot phase.
+    """
+    logger.info("=== Starting Snapshot Setup (GPU) ===")
+    start_time = time.time()
+    try:
+        # 1. Environment Setup
+        sys.path.append("/root")
+        import torch
+        from osediff_sd3 import OSEDiff_SD3_TEST_TILE, SD3Euler
         from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
-            from peft import PeftModel
-            from ram.models.ram_lora import ram
-            
-            self.device = "cuda"
-            logger.info(f"✅ Imports successful")
-            
-            # 2. Load SD3
-            logger.info("Loading SD3...")
-            sd3_path = f"{MODEL_DIR}/sd3_medium_diffusers"
-            if not os.path.exists(sd3_path):
-                raise FileNotFoundError(f"SD3 model not found at {sd3_path}")
-            
-            self.sd3_model = SD3Euler(model_key=sd3_path, device='cuda')
-            logger.info(f"✅ SD3 loaded from {sd3_path}")
-            
-            # Move to GPU and freeze
-            self.sd3_model.text_enc_1.to('cuda')
-            self.sd3_model.text_enc_2.to('cuda')
-            self.sd3_model.text_enc_3.to('cuda')
-            self.sd3_model.transformer.to('cuda', dtype=torch.float32)
-            self.sd3_model.vae.to('cuda', dtype=torch.float32)
-            
-            for p in [self.sd3_model.text_enc_1, self.sd3_model.text_enc_2, self.sd3_model.text_enc_3,
-                      self.sd3_model.transformer, self.sd3_model.vae]:
-                p.requires_grad_(False)
-            
-            logger.info("✅ SD3 components moved to GPU and frozen")
-            
-            # 3. Initialize OSEDiff
-            class MockArgs:
-                lora_rank = 4
-                lora_path = f"{MODEL_DIR}/ckpt/SR_LoRA/model_20001.pkl"
-                vae_path = f"{MODEL_DIR}/ckpt/SR_VAE/vae_encoder_20001.pt"
-                latent_tiled_size = 64
-                latent_tiled_overlap = 16
-                vae_encoder_tiled_size = 1024
-                vae_decoder_tiled_size = 128
-            
-            self.args = MockArgs()
-            
-            # Verify checkpoint files exist
-            if not os.path.exists(self.args.lora_path):
-                raise FileNotFoundError(f"SR LoRA not found: {self.args.lora_path}")
-            if not os.path.exists(self.args.vae_path):
-                raise FileNotFoundError(f"SR VAE not found: {self.args.vae_path}")
-            
-            self.model_test = OSEDiff_SD3_TEST_TILE(self.args, self.sd3_model)
-            logger.info("✅ OSEDiff initialized with LoRA")
-            
+        from peft import PeftModel
+        from ram.models.ram_lora import ram
+        self.device = "cuda"
+        logger.info(f"✅ Imports successful")
+
+        # 2. Load SD3
+        logger.info("Loading SD3...")
+        sd3_path = f"{MODEL_DIR}/sd3_medium_diffusers"
+        if not os.path.exists(sd3_path):
+            raise FileNotFoundError(f"SD3 model not found at {sd3_path}")
+        self.sd3_model = SD3Euler(model_key=sd3_path, device='cuda')
+        logger.info(f"✅ SD3 loaded from {sd3_path}")
+
+        # Move to GPU and freeze
+        self.sd3_model.text_enc_1.to('cuda')
+        self.sd3_model.text_enc_2.to('cuda')
+        self.sd3_model.text_enc_3.to('cuda')
+        self.sd3_model.transformer.to('cuda', dtype=torch.float32)
+        self.sd3_model.vae.to('cuda', dtype=torch.float32)
+        for p in [self.sd3_model.text_enc_1, self.sd3_model.text_enc_2, self.sd3_model.text_enc_3,
+                  self.sd3_model.transformer, self.sd3_model.vae]:
+            p.requires_grad_(False)
+        logger.info("✅ SD3 components moved to GPU and frozen")
+
+        # 3. Initialize OSEDiff
+        class MockArgs:
+            lora_rank = 4
+            lora_path = f"{MODEL_DIR}/ckpt/SR_LoRA/model_20001.pkl"
+            vae_path = f"{MODEL_DIR}/ckpt/SR_VAE/vae_encoder_20001.pt"
+            latent_tiled_size = 64
+            latent_tiled_overlap = 16
+            vae_encoder_tiled_size = 1024
+            vae_decoder_tiled_size = 128
+
+        self.args = MockArgs()
+        if not os.path.exists(self.args.lora_path):
+            raise FileNotFoundError(f"SR LoRA not found: {self.args.lora_path}")
+        if not os.path.exists(self.args.vae_path):
+            raise FileNotFoundError(f"SR VAE not found: {self.args.vae_path}")
+        
+        self.model_test = OSEDiff_SD3_TEST_TILE(self.args, self.sd3_model)
+        logger.info("✅ OSEDiff initialized with LoRA")
+
         # 4. Load Qwen VLM
         logger.info("Loading VLM...")
         vlm_path = f"{MODEL_DIR}/qwen_vl_3b"
         if not os.path.exists(vlm_path):
             raise FileNotFoundError(f"Qwen VL model not found at {vlm_path}")
 
-        # ✅ Use Qwen2_5_VL specific classes (supported in transformers 4.47+)
-        from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
-
         self.vlm_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             vlm_path,
             torch_dtype=torch.bfloat16,
             device_map="auto"
         )
-
         self.vlm_processor = AutoProcessor.from_pretrained(vlm_path)
         logger.info(f"✅ Qwen VLM loaded from {vlm_path}")
-            
-            # Load VLM LoRA  
-            vlm_lora_path = f"{MODEL_DIR}/ckpt/VLM_LoRA"
-            if os.path.exists(vlm_lora_path):
-                # Check if adapter files exist
-                adapter_config = os.path.join(vlm_lora_path, "adapter_config.json")
-                if os.path.exists(adapter_config):
-                    logger.info(f"Loading VLM LoRA from {vlm_lora_path}")
-                    self.vlm_model = PeftModel.from_pretrained(self.vlm_model, vlm_lora_path)
-                    self.vlm_model = self.vlm_model.merge_and_unload()
-                    logger.info("✅ VLM LoRA merged")
-                else:
-                    logger.warning(f"VLM LoRA path exists but no adapter_config.json found")
+
+        # Load VLM LoRA
+        vlm_lora_path = f"{MODEL_DIR}/ckpt/VLM_LoRA"
+        if os.path.exists(vlm_lora_path):
+            adapter_config = os.path.join(vlm_lora_path, "adapter_config.json")
+            if os.path.exists(adapter_config):
+                logger.info(f"Loading VLM LoRA from {vlm_lora_path}")
+                self.vlm_model = PeftModel.from_pretrained(self.vlm_model, vlm_lora_path)
+                self.vlm_model = self.vlm_model.merge_and_unload()
+                logger.info("✅ VLM LoRA merged")
             else:
-                logger.warning(f"VLM LoRA path not found: {vlm_lora_path}")
-            
-            self.vlm_model.eval()
-            
-            # 5. Load RAM/DAPE
-            logger.info("Loading DAPE...")
-            ram_path = f"{MODEL_DIR}/ckpt/RAM/ram_swin_large_14m.pth"
-            dape_path = f"{MODEL_DIR}/ckpt/DAPE/DAPE.pth"
-            
-            if not os.path.exists(ram_path):
-                raise FileNotFoundError(f"RAM model not found: {ram_path}")
-            if not os.path.exists(dape_path):
-                raise FileNotFoundError(f"DAPE model not found: {dape_path}")
-            
-            self.dape = ram(
-                pretrained=ram_path,
-                pretrained_condition=dape_path,
-                image_size=384,
-                vit='swin_l'
-            )
-            self.dape.eval().to("cuda")
-            logger.info("✅ DAPE loaded and moved to GPU")
-            
-            logger.info(f"🎉 GPU Snapshot Setup Complete in {time.time() - start_time:.2f}s")
-            
-        except Exception as e:
-            logger.critical(f"❌ Snapshot Setup FAILED: {e}")
-            logger.critical(f"Error type: {type(e).__name__}")
-            
-            # Enhanced debugging
-            if os.path.exists(MODEL_DIR):
-                logger.info(f"📁 Contents of {MODEL_DIR}:")
-                for root, dirs, files in os.walk(MODEL_DIR):
-                    level = root.replace(MODEL_DIR, '').count(os.sep)
-                    indent = ' ' * 2 * level
-                    logger.info(f"{indent}{os.path.basename(root)}/")
-                    subindent = ' ' * 2 * (level + 1)
-                    for file in files[:10]:  # Limit to first 10 files per dir
-                        logger.info(f"{subindent}{file}")
-                    if len(files) > 10:
-                        logger.info(f"{subindent}... and {len(files) - 10} more files")
-            else:
-                logger.critical(f"Directory {MODEL_DIR} does not exist!")
-            
-            raise e
+                logger.warning(f"VLM LoRA path exists but no adapter_config.json found")
+        else:
+            logger.warning(f"VLM LoRA path not found: {vlm_lora_path}")
+        self.vlm_model.eval()
+
+        # 5. Load RAM/DAPE
+        logger.info("Loading DAPE...")
+        ram_path = f"{MODEL_DIR}/ckpt/RAM/ram_swin_large_14m.pth"
+        dape_path = f"{MODEL_DIR}/ckpt/DAPE/DAPE.pth"
+        if not os.path.exists(ram_path):
+            raise FileNotFoundError(f"RAM model not found: {ram_path}")
+        if not os.path.exists(dape_path):
+            raise FileNotFoundError(f"DAPE model not found: {dape_path}")
+        
+        self.dape = ram(
+            pretrained=ram_path,
+            pretrained_condition=dape_path,
+            image_size=384,
+            vit='swin_l'
+        )
+        self.dape.eval().to("cuda")
+        logger.info("✅ DAPE loaded and moved to GPU")
+
+        logger.info(f"🎉 GPU Snapshot Setup Complete in {time.time() - start_time:.2f}s")
+
+    except Exception as e:
+        logger.critical(f"❌ Snapshot Setup FAILED: {e}")
+        logger.critical(f"Error type: {type(e).__name__}")
+        # Debug directory contents
+        if os.path.exists(MODEL_DIR):
+            logger.info(f"📁 Contents of {MODEL_DIR}:")
+            for root, dirs, files in os.walk(MODEL_DIR):
+                level = root.replace(MODEL_DIR, '').count(os.sep)
+                indent = ' ' * 2 * level
+                logger.info(f"{indent}{os.path.basename(root)}/")
+                subindent = ' ' * 2 * (level + 1)
+                for file in files[:10]:
+                    logger.info(f"{subindent}{file}")
+                if len(files) > 10:
+                    logger.info(f"{subindent}... and {len(files) - 10} more files")
+        else:
+            logger.critical(f"Directory {MODEL_DIR} does not exist!")
+        raise e
     
     @modal.method()
     def process_image(self, image_bytes, upscale_factor=4):
