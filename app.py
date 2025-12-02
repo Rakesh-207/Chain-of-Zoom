@@ -79,6 +79,7 @@ app = modal.App("chain-of-zoom-coz", image=image)
     gpu="A100",
     volumes={MODEL_DIR: ckpt_volume},
     timeout=1200,
+    container_idle_timeout=15,  # ← Shuts down 60 seconds after last request
     enable_memory_snapshot=True,
     experimental_options={"enable_gpu_snapshot": True}
 )
@@ -160,7 +161,7 @@ class ChainOfZoom:
             )
             
             # ✅ FIXED: Use AutoProcessor (it handles both tokenizer and image processor)
-            self.vlm_processor = AutoProcessor.from_pretrained(vlm_path)
+            self.vlm_processor = AutoProcessor.from_pretrained(vlm_path, use_fast=True)  # Uses faster image processor
             
             logger.info(f"✅ Qwen VLM loaded from {vlm_path}")
             
