@@ -38,13 +38,15 @@ image = (
     "torchvision==0.16.2",
     
     # ========== DIFFUSION & TRANSFORMERS ==========
-    "diffusers==0.30.0",        # ✅ CHANGED: 0.28.0 → 0.30.0 (guaranteed SD3)
-    "transformers==4.46.0",     # ✅ Supports Qwen2.5-VL
-    "accelerate==0.30.0",       # ✅ CHANGED: 0.28.0 → 0.30.0 (matches diffusers)
-    "huggingface-hub==0.24.0",  # Keep same
+    "transformers==4.46.0",      # ✅ Supports Qwen2.5-VL
+    "tokenizers==0.20.0",         # ✅ CRITICAL: Required by transformers 4.46
+    "diffusers==0.30.0",
+    "accelerate==0.34.0",         # ✅ Updated for compatibility
+    "huggingface-hub==0.25.0",    # ✅ Updated for stability
+    "safetensors==0.4.5",
     
     # ========== LORA & PEFT ==========
-    "peft==0.11.0",             # ✅ CHANGED: 0.10.0 → 0.11.0 (compatible with transformers 4.43)
+    "peft==0.13.0",               # ✅ Updated for transformers 4.46
     "loralib==0.1.2",
     
     # ========== DISTRIBUTED TRAINING ==========
@@ -64,7 +66,6 @@ image = (
     
     # ========== NLP & TOKENIZATION ==========
     "sentencepiece==0.2.0",
-    "tokenizers==0.19.1",
     "regex==2024.7.24",
     
     # ========== IMAGE QUALITY ==========
@@ -73,9 +74,9 @@ image = (
     # ========== OTHER ==========
     "tqdm==4.66.1",
     "omegaconf==2.3.0",
-    "safetensors==0.4.5",       # ✅ CHANGED: 0.4.3 → 0.4.5 (for accelerate 0.30)
     "fsspec==2024.2.0"
 )
+
 
     .run_commands("git clone https://github.com/Rakesh-207/Chain-of-Zoom.git /root/coz_repo")
     .run_commands("cp -r /root/coz_repo/* /root/")
