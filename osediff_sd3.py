@@ -758,7 +758,15 @@ class OSEDiff_SD3_TEST_TILE(torch.nn.Module):
         print(f"Loading LoRA to VAE from {self.vae_path}")
         self.model.vae, self.lora_vae_modules_encoder = inject_lora_vae(self.model.vae, lora_rank=args.lora_rank, verbose=False)
         encoder_state_dict_fp16 = torch.load(self.vae_path, map_location="cpu")
-        self.model.vae.encoder.load_state_dict(encoder_state_dict_fp16)
+
+        # Fix key naming: rename default_encoder -> default
+        fixed_state_dict = {}
+        for key, value in encoder_state_dict_fp16.items():
+            new_key = key.replace("default_encoder", "default")
+            fixed_state_dict[new_key] = value
+
+        self.model.vae.encoder.load_state_dict(fixed_state_dict, strict=False)
+        print("✅ VAE LoRA loaded successfully")
         
         # save original forward (only once)
         if not hasattr(self.model.vae.encoder, 'original_forward'):
