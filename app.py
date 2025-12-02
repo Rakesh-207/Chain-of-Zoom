@@ -38,7 +38,7 @@ image = (
     "torchvision==0.16.2",
     
     # ========== DIFFUSION & TRANSFORMERS ==========
-    "transformers==4.47.1",       # ✅ MINIMUM for Qwen2.5-VL support
+    "transformers==4.48.0",       # ✅ Latest stable
     "tokenizers==0.21.0",          # ✅ Required by transformers 4.47
     "diffusers==0.30.0",
     "accelerate==0.34.0",
@@ -107,7 +107,7 @@ class ChainOfZoom:
             sys.path.append("/root")
             import torch
             from osediff_sd3 import OSEDiff_SD3_TEST_TILE, SD3Euler
-            from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
+            from transformers import AutoModelForCausalLM, AutoProcessor
             from peft import PeftModel
             from ram.models.ram_lora import ram
             self.device = "cuda"
@@ -156,13 +156,19 @@ class ChainOfZoom:
             vlm_path = f"{MODEL_DIR}/qwen_vl_3b"
             if not os.path.exists(vlm_path):
                 raise FileNotFoundError(f"Qwen VL model not found at {vlm_path}")
-
-            self.vlm_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+    
+            from transformers import AutoModelForCausalLM, AutoProcessor
+    
+            self.vlm_model = AutoModelForCausalLM.from_pretrained(
                 vlm_path,
                 torch_dtype=torch.bfloat16,
-                device_map="auto"
+                device_map="auto",
+                trust_remote_code=True  # ✅ Loads Qwen2.5-VL custom code
             )
-            self.vlm_processor = AutoProcessor.from_pretrained(vlm_path)
+            self.vlm_processor = AutoProcessor.from_pretrained(
+                vlm_path,
+                trust_remote_code=True
+            )
             logger.info(f"✅ Qwen VLM loaded from {vlm_path}")
 
             # Load VLM LoRA
