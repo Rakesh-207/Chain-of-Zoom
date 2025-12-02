@@ -39,7 +39,7 @@ image = (
     
     # ========== DIFFUSION & TRANSFORMERS ==========
     "diffusers==0.30.0",        # ✅ CHANGED: 0.28.0 → 0.30.0 (guaranteed SD3)
-    "transformers==4.43.0",     # ✅ CHANGED: 4.40.0 → 4.43.0 (stable with diffusers 0.30)
+    "transformers==4.46.0",     # ✅ Supports Qwen2.5-VL
     "accelerate==0.30.0",       # ✅ CHANGED: 0.28.0 → 0.30.0 (matches diffusers)
     "huggingface-hub==0.24.0",  # Keep same
     
