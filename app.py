@@ -109,7 +109,7 @@ class ChainOfZoom:
             import torch
             from osediff_sd3 import OSEDiff_SD3_TEST_TILE, SD3Euler
             # ✅ CRITICAL FIX: Use the CORRECT import name
-            from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
+            from transformers import AutoModel, AutoProcessor
             from peft import PeftModel
             from ram.models.ram_lora import ram
             
@@ -164,14 +164,14 @@ class ChainOfZoom:
             vlm_path = f"{MODEL_DIR}/qwen_vl_3b"
             if not os.path.exists(vlm_path):
                 raise FileNotFoundError(f"Qwen VL model not found at {vlm_path}")
-            
-            # ✅ Direct Qwen2-VL import (bypasses auto-detection)
-            from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
 
-            self.vlm_model = Qwen2VLForConditionalGeneration.from_pretrained(
+            # ✅ CORRECT: Use generic AutoModel with trust_remote_code for Qwen2.5-VL
+            from transformers import AutoModel, AutoProcessor
+            self.vlm_model = AutoModel.from_pretrained(
                 vlm_path,
-                torch_dtype="auto",
-                device_map="auto"
+                torch_dtype=torch.bfloat16,
+                device_map="auto",
+                trust_remote_code=True  # ✅ CRITICAL: Loads custom Qwen2.5-VL architecture
             )
 
             self.vlm_processor = AutoProcessor.from_pretrained(
