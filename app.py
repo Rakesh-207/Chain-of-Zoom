@@ -36,7 +36,7 @@ image = (
         "torch==2.1.2",
         "torchvision==0.16.2",
         # ========== DIFFUSION & TRANSFORMERS ==========
-        "transformers==4.48.3",  # ✅ FIXED: Use 4.48.3 (stable, not 4.48.0)
+        "transformers==4.50.0",  #fixed cause 4.48. is too old
         "tokenizers==0.21.0",
         "diffusers==0.30.0",
         "accelerate==0.34.0",
