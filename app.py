@@ -39,11 +39,11 @@ image = (
         "transformers==4.50.0",  #fixed cause 4.48. is too old
         "tokenizers==0.21.0",
         "diffusers==0.30.0",
-        "accelerate==0.34.0",
-        "huggingface-hub==0.26.0",
+        "accelerate==0.35.0",
+        "huggingface-hub==0.27.0",
         "safetensors==0.4.5",
         # ========== LORA & PEFT ==========
-        "peft==0.13.0",
+        "peft==0.14.0",
         "loralib==0.1.2",
         # ========== DISTRIBUTED TRAINING ==========
         "fairscale==0.4.13",
